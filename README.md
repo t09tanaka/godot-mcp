@@ -40,6 +40,13 @@ These tools communicate with the Godot editor via TCP (port 6550). The editor mu
 
 Download `godot-mcp-v*.zip` from the [Releases](../../releases) page and extract it into your Godot project's `addons/` directory:
 
+```bash
+cd your-godot-project/addons
+unzip godot-mcp-v*.zip
+```
+
+This creates the following structure:
+
 ```
 your-godot-project/
 └── addons/

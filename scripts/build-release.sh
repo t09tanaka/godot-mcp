@@ -16,7 +16,7 @@ npm run build
 
 # Step 2: Create release directory
 RELEASE_DIR="$PROJECT_ROOT/release"
-STAGING_DIR="$RELEASE_DIR/staging/addons/mcp_bridge"
+STAGING_DIR="$RELEASE_DIR/staging/mcp_bridge"
 rm -rf "$RELEASE_DIR"
 mkdir -p "$STAGING_DIR/server"
 
@@ -25,10 +25,10 @@ cp "$PROJECT_ROOT/addons/mcp_bridge/plugin.cfg" "$STAGING_DIR/"
 cp "$PROJECT_ROOT/addons/mcp_bridge/mcp_bridge.gd" "$STAGING_DIR/"
 cp "$PROJECT_ROOT/addons/mcp_bridge/server/index.js" "$STAGING_DIR/server/"
 
-# Step 4: Create zip file
+# Step 4: Create zip file (extract into addons/ directory)
 ZIP_NAME="godot-mcp-v${VERSION}.zip"
 cd "$RELEASE_DIR/staging"
-zip -r "$RELEASE_DIR/$ZIP_NAME" addons/
+zip -r "$RELEASE_DIR/$ZIP_NAME" mcp_bridge/
 
 # Cleanup staging
 rm -rf "$RELEASE_DIR/staging"

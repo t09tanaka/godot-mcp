@@ -137,3 +137,9 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Godot MCP - built server output
+addons/mcp_bridge/server/
+
+# Release artifacts
+release/

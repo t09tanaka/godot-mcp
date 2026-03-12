@@ -138,8 +138,9 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
-# Godot MCP - built server output
-addons/mcp_bridge/server/
+# Godot MCP - built server output (keep package.json)
+addons/mcp_bridge/server/*
+!addons/mcp_bridge/server/package.json
 
 # Release artifacts
 release/

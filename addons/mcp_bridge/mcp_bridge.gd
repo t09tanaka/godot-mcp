@@ -30,8 +30,17 @@ func _enter_tree() -> void:
 		return
 	print("MCP Bridge: Listening on 127.0.0.1:%d" % PORT)
 
-	# Register game-side bridge as autoload
-	add_autoload_singleton(GAME_BRIDGE_AUTOLOAD, GAME_BRIDGE_PATH)
+	# Register game-side bridge as autoload (deferred to avoid UID resolution issues)
+	_register_game_bridge.call_deferred()
+
+
+## Register game-side bridge autoload if not already present.
+func _register_game_bridge() -> void:
+	if not ProjectSettings.has_setting("autoload/" + GAME_BRIDGE_AUTOLOAD):
+		add_autoload_singleton(GAME_BRIDGE_AUTOLOAD, GAME_BRIDGE_PATH)
+		print("MCP Bridge: Registered %s autoload" % GAME_BRIDGE_AUTOLOAD)
+	else:
+		print("MCP Bridge: %s autoload already registered" % GAME_BRIDGE_AUTOLOAD)
 
 
 func _exit_tree() -> void:

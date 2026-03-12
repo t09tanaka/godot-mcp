@@ -4,9 +4,6 @@ import { z } from "zod";
 
 import { findProjectRoot } from "./path-utils.js";
 import {
-  listFiles,
-  readScript,
-  writeScript,
   readScene,
   createScene,
   addNode,
@@ -76,57 +73,7 @@ const server = new McpServer({
   version: "0.1.0",
 });
 
-// --- File operation tools (10) ---
-
-server.tool(
-  "list_files",
-  "List files in the Godot project directory",
-  {
-    path: z.string().optional().describe("Subdirectory to list (res:// or relative)"),
-    filter: z.string().optional().describe("Glob pattern filter (e.g. '*.gd', '**/*.tscn')"),
-  },
-  async ({ path, filter }) => {
-    try {
-      const files = await listFiles(PROJECT_ROOT, path, filter);
-      return textResult(files);
-    } catch (err) {
-      return errorResult(err);
-    }
-  },
-);
-
-server.tool(
-  "read_script",
-  "Read a GDScript file",
-  {
-    path: z.string().describe("File path (res:// or relative)"),
-  },
-  async ({ path }) => {
-    try {
-      const content = await readScript(PROJECT_ROOT, path);
-      return textResult(content);
-    } catch (err) {
-      return errorResult(err);
-    }
-  },
-);
-
-server.tool(
-  "write_script",
-  "Write a GDScript file",
-  {
-    path: z.string().describe("File path (res:// or relative)"),
-    content: z.string().describe("File content to write"),
-  },
-  async ({ path, content }) => {
-    try {
-      await writeScript(PROJECT_ROOT, path, content);
-      return textResult({ success: true, path });
-    } catch (err) {
-      return errorResult(err);
-    }
-  },
-);
+// --- File operation tools (7) ---
 
 server.tool(
   "read_scene",

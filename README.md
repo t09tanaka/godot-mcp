@@ -5,15 +5,13 @@ Lets the AI assistant read and edit your Godot project files, run scenes, captur
 
 ## Features
 
-### File Operations (no Godot required)
+### Scene & Project Operations (no Godot required)
 
 These tools work directly on the filesystem. The Godot editor does **not** need to be running.
+File reading/writing is handled by Claude Code itself — these tools focus on Godot-specific formats.
 
 | Tool | Description |
 |------|-------------|
-| `list_files` | List project files with optional glob filter (`*.gd`, `*.tscn`, …) |
-| `read_script` | Read a GDScript file |
-| `write_script` | Write / create a GDScript file |
 | `read_scene` | Parse a `.tscn` file and return the node tree as JSON |
 | `create_scene` | Create a new `.tscn` scene file |
 | `add_node` | Add a node to an existing scene |

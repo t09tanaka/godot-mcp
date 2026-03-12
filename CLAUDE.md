@@ -57,9 +57,9 @@ npm run release      # Create release zip
 
 ## Tool Categories
 
-### File Operations (10 tools, no Godot required)
-list_files, read_script, write_script, read_scene, create_scene,
-add_node, remove_node, update_scene_node, attach_script, read_project_settings
+### Scene & Project Operations (7 tools, no Godot required)
+read_scene, create_scene, add_node, remove_node, update_scene_node,
+attach_script, read_project_settings
 
 ### Runtime Operations (5 tools, Godot plugin required)
 screenshot, run_project, stop_project, get_debug_log, get_scene_tree_live

@@ -11,9 +11,6 @@ import {
 } from "../src/path-utils.js";
 
 import {
-  listFiles,
-  readScript,
-  writeScript,
   readScene,
   createScene,
   addNode,
@@ -161,87 +158,6 @@ describe("normalizePath", () => {
 // ---------------------------------------------------------------------------
 // file-tools tests
 // ---------------------------------------------------------------------------
-
-describe("listFiles", () => {
-  it("lists all files in the project", async () => {
-    const files = await listFiles(tmpDir);
-    expect(files).toContain("res://project.godot");
-    expect(files).toContain("res://scenes/main.tscn");
-    expect(files).toContain("res://scripts/player.gd");
-  });
-
-  it("lists files in a subdirectory", async () => {
-    const files = await listFiles(tmpDir, "scenes");
-    expect(files).toEqual(["res://scenes/main.tscn"]);
-  });
-
-  it("lists files with a glob filter", async () => {
-    const files = await listFiles(tmpDir, undefined, "*.gd");
-    // *.gd should match files in subdirectories when the relative path itself matches
-    // Actually *.gd only matches single-segment paths; use **/*.gd for recursive
-    expect(files).not.toContain("res://scenes/main.tscn");
-  });
-
-  it("lists files with a recursive glob filter", async () => {
-    const files = await listFiles(tmpDir, undefined, "**/*.gd");
-    expect(files).toContain("res://scripts/player.gd");
-    expect(files).not.toContain("res://scenes/main.tscn");
-  });
-
-  it("lists files with tscn filter", async () => {
-    const files = await listFiles(tmpDir, undefined, "**/*.tscn");
-    expect(files).toContain("res://scenes/main.tscn");
-    expect(files).not.toContain("res://scripts/player.gd");
-  });
-
-  it("returns empty array for empty directory", async () => {
-    await mkdir(path.join(tmpDir, "empty"), { recursive: true });
-    const files = await listFiles(tmpDir, "empty");
-    expect(files).toEqual([]);
-  });
-});
-
-describe("readScript / writeScript", () => {
-  it("reads a script file", async () => {
-    const content = await readScript(tmpDir, "res://scripts/player.gd");
-    expect(content).toBe(PLAYER_SCRIPT);
-  });
-
-  it("reads a script using relative path", async () => {
-    const content = await readScript(tmpDir, "scripts/player.gd");
-    expect(content).toBe(PLAYER_SCRIPT);
-  });
-
-  it("writes a new script file", async () => {
-    const newContent = 'extends Node\n\nfunc _ready():\n\tpass\n';
-    await writeScript(tmpDir, "res://scripts/enemy.gd", newContent);
-
-    const readBack = await readFile(
-      path.join(tmpDir, "scripts", "enemy.gd"),
-      "utf-8",
-    );
-    expect(readBack).toBe(newContent);
-  });
-
-  it("creates parent directories when writing", async () => {
-    const newContent = 'extends Resource\n';
-    await writeScript(tmpDir, "res://resources/items/sword.gd", newContent);
-
-    const readBack = await readFile(
-      path.join(tmpDir, "resources", "items", "sword.gd"),
-      "utf-8",
-    );
-    expect(readBack).toBe(newContent);
-  });
-
-  it("overwrites existing file", async () => {
-    const updated = 'extends CharacterBody2D\n\nvar speed = 300.0\n';
-    await writeScript(tmpDir, "scripts/player.gd", updated);
-
-    const readBack = await readScript(tmpDir, "scripts/player.gd");
-    expect(readBack).toBe(updated);
-  });
-});
 
 describe("readProjectSettings", () => {
   it("reads all settings", async () => {

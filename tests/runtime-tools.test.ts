@@ -11,18 +11,35 @@ vi.mock("../src/godot-connection.js", () => {
   };
 });
 
+// Mock GameConnection before importing runtime-tools
+vi.mock("../src/game-connection.js", () => {
+  const mockGameSend = vi.fn();
+  return {
+    GameConnection: vi.fn().mockImplementation(() => ({
+      send: mockGameSend,
+    })),
+    __mockGameSend: mockGameSend,
+  };
+});
+
 // Import after mock setup
 import {
-  screenshot,
+  gameWindowScreenshot,
   runProject,
   stopProject,
   getDebugLog,
   getSceneTreeLive,
+  getPerformance,
+  setPropertyLive,
+  callMethod,
+  getGameLogs,
 } from "../src/runtime-tools.js";
 
-// Access the mock send function
+// Access the mock send functions
 import * as connectionModule from "../src/godot-connection.js";
+import * as gameConnectionModule from "../src/game-connection.js";
 const mockSend = (connectionModule as any).__mockSend as ReturnType<typeof vi.fn>;
+const mockGameSend = (gameConnectionModule as any).__mockGameSend as ReturnType<typeof vi.fn>;
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -30,30 +47,13 @@ const mockSend = (connectionModule as any).__mockSend as ReturnType<typeof vi.fn
 
 beforeEach(() => {
   mockSend.mockReset();
+  mockGameSend.mockReset();
 });
 
-describe("screenshot", () => {
-  it("calls send with 'screenshot' action and returns base64 string", async () => {
-    const fakeBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB...";
-    mockSend.mockResolvedValue(fakeBase64);
-
-    const result = await screenshot();
-
-    expect(mockSend).toHaveBeenCalledWith("screenshot");
-    expect(result).toBe(fakeBase64);
-  });
-
-  it("propagates errors from connection", async () => {
-    mockSend.mockRejectedValue(
-      new Error("Godot is not connected. Start the editor and enable the MCP Bridge plugin."),
-    );
-
-    await expect(screenshot()).rejects.toThrow("Godot is not connected");
-  });
-});
+// --- Editor operations (port 6550) ---
 
 describe("runProject", () => {
-  it("calls send with 'run_project' action", async () => {
+  it("calls editor connection with 'run_project' action", async () => {
     mockSend.mockResolvedValue(null);
 
     await runProject();
@@ -63,7 +63,7 @@ describe("runProject", () => {
 });
 
 describe("stopProject", () => {
-  it("calls send with 'stop_project' action", async () => {
+  it("calls editor connection with 'stop_project' action", async () => {
     mockSend.mockResolvedValue(null);
 
     await stopProject();
@@ -73,7 +73,7 @@ describe("stopProject", () => {
 });
 
 describe("getDebugLog", () => {
-  it("calls send with 'get_debug_log' action without params", async () => {
+  it("calls editor connection with 'get_debug_log' action without params", async () => {
     mockSend.mockResolvedValue("some debug output\n");
 
     const result = await getDebugLog();
@@ -82,7 +82,7 @@ describe("getDebugLog", () => {
     expect(result).toBe("some debug output\n");
   });
 
-  it("calls send with 'get_debug_log' action with lines param", async () => {
+  it("calls editor connection with 'get_debug_log' action with lines param", async () => {
     mockSend.mockResolvedValue("line1\nline2\n");
 
     const result = await getDebugLog(2);
@@ -92,8 +92,30 @@ describe("getDebugLog", () => {
   });
 });
 
+// --- Game operations (port 6551) ---
+
+describe("gameWindowScreenshot", () => {
+  it("calls game connection with 'screenshot' action and returns base64 string", async () => {
+    const fakeBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB...";
+    mockGameSend.mockResolvedValue(fakeBase64);
+
+    const result = await gameWindowScreenshot();
+
+    expect(mockGameSend).toHaveBeenCalledWith("screenshot");
+    expect(result).toBe(fakeBase64);
+  });
+
+  it("propagates errors from game connection", async () => {
+    mockGameSend.mockRejectedValue(
+      new Error("Game is not running or MCP Game Bridge is not loaded."),
+    );
+
+    await expect(gameWindowScreenshot()).rejects.toThrow("Game is not running");
+  });
+});
+
 describe("getSceneTreeLive", () => {
-  it("calls send with 'get_scene_tree_live' action and returns object", async () => {
+  it("calls game connection with 'get_scene_tree' action and returns object", async () => {
     const fakeTree = {
       name: "Root",
       type: "Node2D",
@@ -101,11 +123,91 @@ describe("getSceneTreeLive", () => {
         { name: "Player", type: "CharacterBody2D", children: [] },
       ],
     };
-    mockSend.mockResolvedValue(fakeTree);
+    mockGameSend.mockResolvedValue(fakeTree);
 
     const result = await getSceneTreeLive();
 
-    expect(mockSend).toHaveBeenCalledWith("get_scene_tree_live");
+    expect(mockGameSend).toHaveBeenCalledWith("get_scene_tree");
     expect(result).toEqual(fakeTree);
+  });
+});
+
+describe("getPerformance", () => {
+  it("calls game connection with 'get_performance' action", async () => {
+    const fakeMetrics = {
+      fps: 60,
+      frame_time: 0.016,
+      memory_static: 1024000,
+      draw_calls: 42,
+    };
+    mockGameSend.mockResolvedValue(fakeMetrics);
+
+    const result = await getPerformance();
+
+    expect(mockGameSend).toHaveBeenCalledWith("get_performance");
+    expect(result).toEqual(fakeMetrics);
+  });
+});
+
+describe("setPropertyLive", () => {
+  it("calls game connection with 'set_property' action and correct params", async () => {
+    const response = { node: "Player", property: "visible", value: false };
+    mockGameSend.mockResolvedValue(response);
+
+    const result = await setPropertyLive("Player", "visible", false);
+
+    expect(mockGameSend).toHaveBeenCalledWith("set_property", {
+      node_path: "Player",
+      property: "visible",
+      value: false,
+    });
+    expect(result).toEqual(response);
+  });
+});
+
+describe("callMethod", () => {
+  it("calls game connection with 'call_method' action and correct params", async () => {
+    mockGameSend.mockResolvedValue(null);
+
+    await callMethod("Player", "take_damage", [10]);
+
+    expect(mockGameSend).toHaveBeenCalledWith("call_method", {
+      node_path: "Player",
+      method: "take_damage",
+      args: [10],
+    });
+  });
+
+  it("passes empty args array when no args provided", async () => {
+    mockGameSend.mockResolvedValue("hello");
+
+    const result = await callMethod("Player", "get_name");
+
+    expect(mockGameSend).toHaveBeenCalledWith("call_method", {
+      node_path: "Player",
+      method: "get_name",
+      args: [],
+    });
+    expect(result).toBe("hello");
+  });
+});
+
+describe("getGameLogs", () => {
+  it("calls game connection with 'get_game_logs' action without params", async () => {
+    mockGameSend.mockResolvedValue("game output\n");
+
+    const result = await getGameLogs();
+
+    expect(mockGameSend).toHaveBeenCalledWith("get_game_logs", undefined);
+    expect(result).toBe("game output\n");
+  });
+
+  it("calls game connection with 'get_game_logs' action with lines param", async () => {
+    mockGameSend.mockResolvedValue("line1\n");
+
+    const result = await getGameLogs(1);
+
+    expect(mockGameSend).toHaveBeenCalledWith("get_game_logs", { lines: 1 });
+    expect(result).toBe("line1\n");
   });
 });

@@ -24,9 +24,15 @@ export interface GodotResponse {
  * Creates a new TCP connection for each request.
  */
 export class GodotConnection {
-  private port = 6550;
-  private host = "127.0.0.1";
-  private timeout = 10000; // 10 seconds
+  private port: number;
+  private host: string;
+  private timeout: number;
+
+  constructor(port = 6550, host = "127.0.0.1", timeout = 10000) {
+    this.port = port;
+    this.host = host;
+    this.timeout = timeout;
+  }
 
   /**
    * Send a request to Godot and wait for a response.

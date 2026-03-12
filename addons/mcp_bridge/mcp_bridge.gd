@@ -6,6 +6,11 @@ const PORT: int = 6550
 ## Maximum number of bytes to read per poll cycle.
 const MAX_READ_BYTES: int = 65536
 
+## Autoload name for the game-side bridge.
+const GAME_BRIDGE_AUTOLOAD := "MCPGameBridge"
+## Path to the game-side bridge script.
+const GAME_BRIDGE_PATH := "res://addons/mcp_bridge/mcp_game_bridge.gd"
+
 var _server: TCPServer = null
 var _clients: Array[StreamPeerTCP] = []
 ## Per-client receive buffer (accumulates partial reads).
@@ -25,8 +30,14 @@ func _enter_tree() -> void:
 		return
 	print("MCP Bridge: Listening on 127.0.0.1:%d" % PORT)
 
+	# Register game-side bridge as autoload
+	add_autoload_singleton(GAME_BRIDGE_AUTOLOAD, GAME_BRIDGE_PATH)
+
 
 func _exit_tree() -> void:
+	# Unregister game-side bridge autoload
+	remove_autoload_singleton(GAME_BRIDGE_AUTOLOAD)
+
 	if _server != null:
 		_server.stop()
 		_server = null
@@ -103,16 +114,12 @@ func _handle_request(client_index: int, json_line: String) -> void:
 	var params: Dictionary = request.get("params", {})
 
 	match action:
-		"screenshot":
-			_handle_screenshot(client_index, request_id)
 		"run_project":
 			_handle_run_project(client_index, request_id)
 		"stop_project":
 			_handle_stop_project(client_index, request_id)
 		"get_debug_log":
 			_handle_get_debug_log(client_index, request_id, params)
-		"get_scene_tree_live":
-			_handle_get_scene_tree_live(client_index, request_id)
 		_:
 			_send_error(client_index, request_id, "Unknown action: %s" % action)
 
@@ -150,31 +157,6 @@ func _send_json(client_index: int, data: Dictionary) -> void:
 # Action handlers
 # ---------------------------------------------------------------------------
 
-## Capture the editor viewport as a base64 PNG.
-func _handle_screenshot(client_index: int, request_id: String) -> void:
-	var viewport := EditorInterface.get_editor_viewport_3d()
-	if viewport == null:
-		viewport = EditorInterface.get_editor_viewport_2d()
-	if viewport == null:
-		# Fallback: use the main editor viewport
-		var base_control := EditorInterface.get_base_control()
-		if base_control != null:
-			viewport = base_control.get_viewport()
-
-	if viewport == null:
-		_send_error(client_index, request_id, "Could not get editor viewport")
-		return
-
-	var image := viewport.get_texture().get_image()
-	if image == null:
-		_send_error(client_index, request_id, "Could not capture viewport image")
-		return
-
-	var png_data := image.save_png_to_buffer()
-	var base64 := Marshalls.raw_to_base64(png_data)
-	_send_response(client_index, request_id, base64)
-
-
 ## Run the main scene.
 func _handle_run_project(client_index: int, request_id: String) -> void:
 	EditorInterface.play_main_scene()
@@ -195,39 +177,6 @@ func _handle_get_debug_log(client_index: int, request_id: String, params: Dictio
 	for idx in range(start, _log_lines.size()):
 		output += _log_lines[idx] + "\n"
 	_send_response(client_index, request_id, output)
-
-
-## Get the live scene tree from the running game.
-func _handle_get_scene_tree_live(client_index: int, request_id: String) -> void:
-	if not EditorInterface.is_playing_scene():
-		_send_error(client_index, request_id, "No scene is currently running")
-		return
-
-	# Use the editor debugger to get tree info
-	var debugger := EditorInterface.get_script_editor()
-	# Since direct tree access from the editor to the running game is limited,
-	# we use EditorInterface to get the edited scene tree as a fallback.
-	var edited_scene := EditorInterface.get_edited_scene_root()
-	if edited_scene == null:
-		_send_error(client_index, request_id, "No scene tree available")
-		return
-
-	var tree_data := _serialize_node(edited_scene)
-	_send_response(client_index, request_id, tree_data)
-
-
-## Recursively serialize a node tree into a dictionary.
-func _serialize_node(node: Node) -> Dictionary:
-	var data := {
-		"name": node.name,
-		"type": node.get_class(),
-		"children": [],
-	}
-
-	for child in node.get_children():
-		(data["children"] as Array).append(_serialize_node(child))
-
-	return data
 
 
 # ---------------------------------------------------------------------------

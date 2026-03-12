@@ -13,11 +13,15 @@ import {
   readProjectSettings,
 } from "./file-tools.js";
 import {
-  screenshot,
+  gameWindowScreenshot,
   runProject,
   stopProject,
   getDebugLog,
   getSceneTreeLive,
+  getPerformance,
+  setPropertyLive,
+  callMethod,
+  getGameLogs,
 } from "./runtime-tools.js";
 
 // ---------------------------------------------------------------------------
@@ -70,7 +74,7 @@ function errorResult(err: unknown): ToolResult {
 
 const server = new McpServer({
   name: "godot-mcp",
-  version: "0.1.0",
+  version: "0.2.0",
 });
 
 // --- File operation tools (7) ---
@@ -206,25 +210,7 @@ server.tool(
   },
 );
 
-// --- Runtime tools (5) ---
-
-server.tool(
-  "screenshot",
-  "Capture a screenshot of the Godot editor viewport",
-  {},
-  async () => {
-    try {
-      const base64 = await screenshot();
-      return {
-        content: [
-          { type: "image" as const, data: base64, mimeType: "image/png" },
-        ],
-      };
-    } catch (err) {
-      return errorResult(err);
-    }
-  },
-);
+// --- Editor runtime tools (3, require editor plugin on port 6550) ---
 
 server.tool(
   "run_project",
@@ -270,14 +256,100 @@ server.tool(
   },
 );
 
+// --- Game runtime tools (6, require running game with autoload on port 6551) ---
+
+server.tool(
+  "game_window_screenshot",
+  "Capture a screenshot of the running game window (not the editor)",
+  {},
+  async () => {
+    try {
+      const base64 = await gameWindowScreenshot();
+      return {
+        content: [
+          { type: "image" as const, data: base64, mimeType: "image/png" },
+        ],
+      };
+    } catch (err) {
+      return errorResult(err);
+    }
+  },
+);
+
 server.tool(
   "get_scene_tree_live",
-  "Get the live scene tree from the running game",
+  "Get the live scene tree from the running game process",
   {},
   async () => {
     try {
       const tree = await getSceneTreeLive();
       return textResult(tree);
+    } catch (err) {
+      return errorResult(err);
+    }
+  },
+);
+
+server.tool(
+  "get_performance",
+  "Get performance metrics (FPS, memory, draw calls, etc.) from the running game",
+  {},
+  async () => {
+    try {
+      const metrics = await getPerformance();
+      return textResult(metrics);
+    } catch (err) {
+      return errorResult(err);
+    }
+  },
+);
+
+server.tool(
+  "set_property_live",
+  "Set a property on a node in the running game (live tuning)",
+  {
+    node_path: z.string().describe("Node path in the scene tree (e.g. 'Player', 'UI/HealthBar')"),
+    property: z.string().describe("Property name (e.g. 'position', 'visible', 'modulate')"),
+    value: z.any().describe("Value to set"),
+  },
+  async ({ node_path, property, value }) => {
+    try {
+      const result = await setPropertyLive(node_path, property, value);
+      return textResult(result);
+    } catch (err) {
+      return errorResult(err);
+    }
+  },
+);
+
+server.tool(
+  "call_method",
+  "Call a method on a node in the running game",
+  {
+    node_path: z.string().describe("Node path in the scene tree (e.g. 'Player', 'UI/HealthBar')"),
+    method: z.string().describe("Method name to call"),
+    args: z.array(z.any()).optional().describe("Arguments to pass to the method"),
+  },
+  async ({ node_path, method, args }) => {
+    try {
+      const result = await callMethod(node_path, method, args);
+      return textResult(result);
+    } catch (err) {
+      return errorResult(err);
+    }
+  },
+);
+
+server.tool(
+  "get_game_logs",
+  "Get captured log output from the running game process",
+  {
+    lines: z.number().optional().describe("Number of recent log lines to retrieve"),
+  },
+  async ({ lines }) => {
+    try {
+      const log = await getGameLogs(lines);
+      return textResult(log);
     } catch (err) {
       return errorResult(err);
     }

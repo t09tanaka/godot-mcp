@@ -23,6 +23,7 @@ mkdir -p "$STAGING_DIR/server"
 # Step 3: Copy files into proper structure
 cp "$PROJECT_ROOT/addons/mcp_bridge/plugin.cfg" "$STAGING_DIR/"
 cp "$PROJECT_ROOT/addons/mcp_bridge/mcp_bridge.gd" "$STAGING_DIR/"
+cp "$PROJECT_ROOT/addons/mcp_bridge/mcp_game_bridge.gd" "$STAGING_DIR/"
 cp "$PROJECT_ROOT/addons/mcp_bridge/server/index.js" "$STAGING_DIR/server/"
 cp "$PROJECT_ROOT/addons/mcp_bridge/server/package.json" "$STAGING_DIR/server/"
 

@@ -1,7 +1,7 @@
 # Godot MCP
 
 MCP (Model Context Protocol) server that connects **Godot Engine** with **Claude Code**.
-Lets the AI assistant read and edit your Godot project files, run scenes, capture screenshots, and inspect the live scene tree — all from the command line.
+Lets the AI assistant read and edit your Godot project files, run scenes, capture game window screenshots, inspect the live scene tree, and tune the game at runtime — all from the command line.
 
 ## Features
 
@@ -20,17 +20,28 @@ File reading/writing is handled by Claude Code itself — these tools focus on G
 | `attach_script` | Attach a GDScript to a node in a scene |
 | `read_project_settings` | Read values from `project.godot` |
 
-### Runtime Operations (Godot editor required)
+### Editor Operations (Godot editor required)
 
 These tools communicate with the Godot editor via TCP (port 6550). The editor must be running with the MCP Bridge plugin enabled.
 
 | Tool | Description |
 |------|-------------|
-| `screenshot` | Capture a viewport screenshot (returned as PNG) |
 | `run_project` | Run the main scene |
 | `stop_project` | Stop the running game |
 | `get_debug_log` | Retrieve debug output (print statements, errors) |
-| `get_scene_tree_live` | Get the live scene tree of the running game |
+
+### Game Operations (running game required)
+
+These tools communicate directly with the running game process via TCP (port 6551). The game must be running (use `run_project` first). An autoload script (`MCPGameBridge`) is automatically registered when the MCP Bridge plugin is enabled.
+
+| Tool | Description |
+|------|-------------|
+| `game_window_screenshot` | Capture a screenshot of the game window (not the editor) |
+| `get_scene_tree_live` | Get the live scene tree from the running game |
+| `get_performance` | Get performance metrics (FPS, memory, draw calls, etc.) |
+| `set_property_live` | Set a property on a node at runtime (live tuning) |
+| `call_method` | Call a method on a node in the running game |
+| `get_game_logs` | Get captured log output from the game process |
 
 ## Installation
 
@@ -51,6 +62,7 @@ your-godot-project/
     └── mcp_bridge/
         ├── plugin.cfg
         ├── mcp_bridge.gd
+        ├── mcp_game_bridge.gd
         └── server/
             └── index.js
 ```
@@ -72,15 +84,17 @@ Add the following to `.mcp.json` in your Godot project root:
 
 That's it — Claude Code will automatically start the MCP server when you open the project.
 
-### 3. Enable the Godot plugin (optional, for runtime tools)
+### 3. Enable the Godot plugin (for editor & game tools)
 
-If you want to use runtime tools (screenshot, run/stop, debug log, live scene tree):
+To use editor tools (run/stop/debug log) and game tools (screenshot, live scene tree, performance, etc.):
 
 1. Open your project in the Godot editor
 2. Go to **Project → Project Settings → Plugins**
 3. Enable **MCP Bridge**
 
-The plugin starts a TCP server on port 6550 that the MCP server connects to when runtime tools are called.
+The plugin does two things:
+- Starts a TCP server on **port 6550** for editor operations
+- Registers `MCPGameBridge` as an autoload, which starts a TCP server on **port 6551** inside the game process when the game is running
 
 ## Requirements
 
@@ -96,11 +110,17 @@ Claude Code ←── stdio (JSON-RPC) ──→ MCP Server (Node.js)
                                          ├─ File operations
                                          │  (direct filesystem access)
                                          │
-                                         └─ Runtime operations
-                                            ↕ TCP (JSON Lines, port 6550)
-                                         Godot Plugin (@tool GDScript)
-                                            ↕ EditorInterface API
-                                         Godot Editor
+                                         ├─ Editor operations
+                                         │  ↕ TCP (JSON Lines, port 6550)
+                                         │  Godot Plugin (@tool GDScript)
+                                         │  ↕ EditorInterface API
+                                         │  Godot Editor
+                                         │
+                                         └─ Game operations
+                                            ↕ TCP (JSON Lines, port 6551)
+                                            MCPGameBridge (Autoload)
+                                            ↕ SceneTree / Viewport / Performance
+                                            Running Game Process
 ```
 
 ## Development
@@ -109,7 +129,7 @@ Claude Code ←── stdio (JSON-RPC) ──→ MCP Server (Node.js)
 npm install          # Install dependencies
 npm run build        # Build MCP server → addons/mcp_bridge/server/index.js
 npm run dev          # Watch mode (rebuild on change)
-npm test             # Run tests (97 tests)
+npm test             # Run tests
 npm run release      # Create release zip
 ```
 

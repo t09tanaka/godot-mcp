@@ -8,8 +8,9 @@ Enables AI assistants to perform file operations and runtime control of Godot pr
 ## Architecture
 
 - **MCP Server**: TypeScript (Node.js), bundled to single JS with esbuild
-- **Godot Plugin**: @tool GDScript, EditorPlugin with TCP server on port 6550
-- **Communication**: stdio (JSON-RPC) for MCP, TCP (JSON Lines) for Godot bridge
+- **Godot Editor Plugin** (`mcp_bridge.gd`): @tool GDScript, EditorPlugin with TCP server on port 6550
+- **Game Bridge Autoload** (`mcp_game_bridge.gd`): GDScript autoload running inside the game process, TCP server on port 6551
+- **Communication**: stdio (JSON-RPC) for MCP, TCP (JSON Lines) for editor bridge (6550) and game bridge (6551)
 
 ## Tech Stack
 
@@ -26,10 +27,16 @@ Enables AI assistants to perform file operations and runtime control of Godot pr
 godot-mcp/
 ├── addons/mcp_bridge/          # Godot plugin (distributed)
 │   ├── plugin.cfg
-│   ├── mcp_bridge.gd
+│   ├── mcp_bridge.gd           # Editor plugin (port 6550)
+│   ├── mcp_game_bridge.gd      # Game autoload (port 6551)
 │   └── server/index.js         # Built output (gitignored)
 ├── src/                        # MCP server source
-│   └── index.ts
+│   ├── index.ts                # MCP tool definitions
+│   ├── godot-connection.ts     # TCP client for editor (port 6550)
+│   ├── game-connection.ts      # TCP client for game (port 6551, with retry)
+│   ├── runtime-tools.ts        # Runtime tool implementations
+│   ├── file-tools.ts           # File operation implementations
+│   └── ...
 ├── tests/                      # Test files
 ├── scripts/
 │   └── build-release.sh
@@ -52,7 +59,7 @@ npm run release      # Create release zip
 
 - All commit messages, comments, and documentation in **English**
 - Use `res://` path format when handling Godot file paths
-- File operations work without Godot running; runtime operations require Godot plugin
+- File operations work without Godot running; editor operations require editor plugin; game operations require running game
 - Always validate Godot project root (look for `project.godot`)
 
 ## Tool Categories
@@ -61,8 +68,12 @@ npm run release      # Create release zip
 read_scene, create_scene, add_node, remove_node, update_scene_node,
 attach_script, read_project_settings
 
-### Runtime Operations (5 tools, Godot plugin required)
-screenshot, run_project, stop_project, get_debug_log, get_scene_tree_live
+### Editor Operations (3 tools, editor plugin required, port 6550)
+run_project, stop_project, get_debug_log
+
+### Game Operations (6 tools, running game required, port 6551)
+game_window_screenshot, get_scene_tree_live, get_performance,
+set_property_live, call_method, get_game_logs
 
 ## Testing Requirements
 
@@ -73,7 +84,9 @@ screenshot, run_project, stop_project, get_debug_log, get_scene_tree_live
 
 ## Key Design Decisions
 
-- TCP port 6550 is fixed (single project at a time)
+- TCP port 6550 for editor plugin, 6551 for game autoload
+- Editor plugin auto-registers MCPGameBridge autoload on enable
+- Game connection has retry logic for game startup delay
 - Godot plugin is TCP server, MCP server is TCP client
 - No project.godot write support (too risky)
 - No signal connection editing (use GDScript `signal.connect()` instead)
